@@ -25,7 +25,7 @@ public final class AuthDtos {
                                         @NotBlank String confirmPassword) {
     }
 
-    public record UserDto(Long id, String fullName, String email, Role role, Instant createdAt) {
+    public record UserDto(Long id, String fullName, String email, String avatarUrl, Role role, Instant createdAt) {
     }
 
     public record AuthResponse(String token, String tokenType, long expiresInSeconds, UserDto user) {

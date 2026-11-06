@@ -1,9 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Camera, Plus, Trash2 } from 'lucide-react';
 import { profileApi } from '../api';
 import { errorMessage, fieldErrors } from '../api/client';
 import type { EmploymentStatus, Profile as ProfileData } from '../api/types';
-import { Alert, PageHeader, ProgressBar, Spinner, TagInput } from '../components/ui';
+import { Alert, Modal, PageHeader, ProgressBar, Spinner, TagInput } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { INDUSTRIES } from '../lib/format';
 
@@ -19,11 +19,15 @@ export default function Profile() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarConfirm, setAvatarConfirm] = useState<{ kind: 'upload'; file: File } | { kind: 'remove' } | null>(null);
+  const avatarInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => { profileApi.get().then(setP).catch((e) => setError(errorMessage(e))); }, []);
 
   if (!p) return error ? <Alert>{error}</Alert> : <Spinner />;
 
+  const initials = p.fullName.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
   const upd = (patch: Partial<ProfileData>) => setP({ ...p, ...patch });
   const txt = (k: 'fullName' | 'phone' | 'location' | 'headline' | 'careerObjective') => (e: { target: { value: string } }) => upd({ [k]: e.target.value });
 
@@ -55,11 +59,116 @@ export default function Profile() {
     }
   };
 
+  const chooseAvatar = (file?: File) => {
+    if (!file) return;
+    setError(null);
+    setNotice(null);
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      setError('Choose a PNG, JPG or WEBP image.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Image is too large. The limit is 2 MB.');
+      return;
+    }
+    setAvatarConfirm({ kind: 'upload', file });
+  };
+
+  const uploadAvatar = async (file: File) => {
+    setAvatarBusy(true);
+    try {
+      const saved = await profileApi.uploadAvatar(file);
+      setP(saved);
+      if (user) setUser({ ...user, avatarUrl: saved.avatarUrl });
+      setNotice('Profile picture updated.');
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+
+  const removeAvatar = async () => {
+    setAvatarBusy(true);
+    try {
+      const saved = await profileApi.removeAvatar();
+      setP(saved);
+      if (user) setUser({ ...user, avatarUrl: saved.avatarUrl });
+      setNotice('Profile picture removed.');
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+
+  const confirmAvatar = async () => {
+    if (!avatarConfirm) return;
+    const action = avatarConfirm;
+    setAvatarConfirm(null);
+    setError(null);
+    setNotice(null);
+    if (action.kind === 'upload') await uploadAvatar(action.file);
+    else await removeAvatar();
+  };
+
   return (
     <form onSubmit={save} noValidate>
       <PageHeader title="My Profile" subtitle="Complete profiles get better job matches and AI advice." actions={<button className="btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Save profile'}</button>} />
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
       {notice && <div className="mb-4"><Alert kind="success">{notice}</Alert></div>}
+
+      <section className="card mb-6 flex flex-col items-center gap-5 p-5 sm:flex-row">
+        <div className="shrink-0">
+          {p.avatarUrl ? (
+            <img src={p.avatarUrl} alt={`${p.fullName} profile picture`} className="h-24 w-24 rounded-full border-4 border-white object-cover shadow ring-1 ring-slate-200" />
+          ) : (
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-navy-100 text-2xl font-bold text-navy-700 ring-1 ring-slate-200" aria-hidden>{initials}</div>
+          )}
+        </div>
+        <div className="flex-1 text-center sm:text-left">
+          <h2 className="font-semibold">Profile picture</h2>
+          <p className="mt-1 text-sm text-slate-500">Upload a PNG, JPG or WEBP image up to 2 MB. It appears next to your name.</p>
+          <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
+            <button type="button" className="btn-secondary btn-sm" onClick={() => avatarInput.current?.click()} disabled={avatarBusy}>
+              <Camera className="h-4 w-4" />{avatarBusy ? 'Uploading...' : p.avatarUrl ? 'Change photo' : 'Upload photo'}
+            </button>
+            {p.avatarUrl && (
+              <button type="button" className="btn-ghost btn-sm text-red-600" onClick={() => setAvatarConfirm({ kind: 'remove' })} disabled={avatarBusy}>
+                <Trash2 className="h-4 w-4" />Remove
+              </button>
+            )}
+          </div>
+          <input
+            ref={avatarInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+            onChange={(e) => { chooseAvatar(e.target.files?.[0]); e.target.value = ''; }}
+          />
+        </div>
+      </section>
+
+      {avatarConfirm && (
+        <Modal
+          title={avatarConfirm.kind === 'upload' ? 'Update profile picture?' : 'Remove profile picture?'}
+          onClose={() => setAvatarConfirm(null)}
+        >
+          <p className="text-sm text-slate-600">
+            {avatarConfirm.kind === 'upload'
+              ? `Use "${avatarConfirm.file.name}" as your profile picture? Your current picture will be replaced.`
+              : 'Remove your profile picture? Your initials will be shown until you upload a new one.'}
+          </p>
+          <div className="mt-5 flex justify-end gap-2">
+            <button type="button" className="btn-secondary" onClick={() => setAvatarConfirm(null)} disabled={avatarBusy}>Cancel</button>
+            <button
+              type="button"
+              className={avatarConfirm.kind === 'remove' ? 'btn-secondary text-red-600' : 'btn-primary'}
+              onClick={confirmAvatar}
+              disabled={avatarBusy}
+            >
+              {avatarBusy ? 'Please wait...' : avatarConfirm.kind === 'remove' ? 'Remove' : 'Update photo'}
+            </button>
+          </div>
+        </Modal>
+      )}
 
       <div className="card mb-6 p-5"><div className="mb-2 flex justify-between text-sm"><span className="font-medium">Profile completion</span><span>{p.completionPercentage}%</span></div><ProgressBar value={p.completionPercentage} /></div>
 

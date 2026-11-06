@@ -98,7 +98,7 @@ public class AuthService {
     }
 
     public UserDto toDto(User u) {
-        return new UserDto(u.getId(), u.getFullName(), u.getEmail(), u.getRole(), u.getCreatedAt());
+        return new UserDto(u.getId(), u.getFullName(), u.getEmail(), profileService.avatarUrl(u), u.getRole(), u.getCreatedAt());
     }
 
     private AuthResponse buildResponse(User user) {

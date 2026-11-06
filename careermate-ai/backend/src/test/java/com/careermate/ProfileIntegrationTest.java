@@ -1,17 +1,25 @@
 package com.careermate;
 
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.web.servlet.MvcResult;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class ProfileIntegrationTest extends IntegrationTestBase {
+    private static final byte[] PNG = Base64.getDecoder().decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
 
     @Test
     void newUserHasEmptyProfile() throws Exception {
@@ -65,6 +73,36 @@ class ProfileIntegrationTest extends IntegrationTestBase {
         mvc.perform(auth(get("/api/v1/profile"), token))
                 .andExpect(jsonPath("$.data.preferences.preferredLocations[0]").value("Colombo, Sri Lanka"))
                 .andExpect(jsonPath("$.data.preferences.preferredIndustries[0]").value("Finance"));
+    }
+
+    @Test
+    void avatarCanBeUploadedServedAndRemoved() throws Exception {
+        String token = registerUser();
+        MvcResult uploaded = mvc.perform(auth(multipart("/api/v1/profile/avatar")
+                        .file(new MockMultipartFile("file", "avatar.png", "image/png", PNG)), token))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.avatarUrl").isNotEmpty())
+                .andReturn();
+        String avatarUrl = body(uploaded).at("/data/avatarUrl").asText();
+
+        mvc.perform(get(avatarUrl)).andExpect(status().isOk()).andExpect(content().contentType("image/png"));
+        mvc.perform(auth(get("/api/v1/auth/me"), token)).andExpect(jsonPath("$.data.avatarUrl").value(avatarUrl));
+
+        mvc.perform(auth(delete("/api/v1/profile/avatar"), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.avatarUrl").doesNotExist());
+        mvc.perform(get(avatarUrl)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void invalidAvatarIsRejected() throws Exception {
+        String token = registerUser();
+        mvc.perform(auth(multipart("/api/v1/profile/avatar")
+                        .file(new MockMultipartFile("file", "avatar.png", "image/png", "not an image".getBytes())), token))
+                .andExpect(status().isBadRequest());
+        mvc.perform(auth(multipart("/api/v1/profile/avatar")
+                        .file(new MockMultipartFile("file", "avatar.txt", "text/plain", "hello".getBytes())), token))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

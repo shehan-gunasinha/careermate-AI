@@ -24,6 +24,7 @@ export default function Layout() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  const initials = (user?.fullName ?? '').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
 
   useEffect(() => setOpen(false), [location.pathname]);
 
@@ -70,9 +71,16 @@ export default function Layout() {
         ))}
       </ul>
       <div className="border-t border-white/10 p-3">
-        <div className="mb-2 px-3 text-xs text-navy-200">
-          <div className="truncate font-semibold text-white">{user?.fullName}</div>
-          <div className="truncate">{user?.email}</div>
+        <div className="mb-2 flex items-center gap-3 px-3 text-xs text-navy-200">
+          {user?.avatarUrl ? (
+            <img src={user.avatarUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-white/20" />
+          ) : (
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-sm font-semibold text-white" aria-hidden>{initials}</div>
+          )}
+          <div className="min-w-0">
+            <div className="truncate font-semibold text-white">{user?.fullName}</div>
+            <div className="truncate">{user?.email}</div>
+          </div>
         </div>
         <button onClick={doLogout} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-navy-200 hover:bg-white/5 hover:text-white">
           <LogOut className="h-[18px] w-[18px]" aria-hidden /> Logout

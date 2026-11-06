@@ -49,13 +49,13 @@ Prerequisites: JDK 21, Maven 3.9+, Node 20+ (22 recommended), PostgreSQL 14+.
 # 1. Database
 createdb careermate   # and a user matching DB_USERNAME / DB_PASSWORD (defaults: careermate / careermate)
 
-# 2. Backend (http://localhost:8080) - Flyway creates the schema and demo jobs on first start
+# 2. Backend (http://localhost:8081) - Flyway creates the schema and demo jobs on first start
 cd backend
 export JWT_SECRET="$(openssl rand -base64 48)"
 export GEMINI_API_KEY=            # optional
 mvn spring-boot:run
 
-# 3. Frontend (http://localhost:5173) - Vite proxies /api to localhost:8080
+# 3. Frontend (http://localhost:5173) - Vite proxies /api to localhost:8081
 cd frontend
 npm install
 npm run dev
