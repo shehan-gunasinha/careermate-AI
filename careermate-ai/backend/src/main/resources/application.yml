@@ -1,0 +1,87 @@
+server:
+  port: 8081
+  error:
+    include-message: never
+
+spring:
+  application:
+    name: careermate
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/careermate}
+    username: careermate
+    password: "#Password123"
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+  jackson:
+    default-property-inclusion: non_null
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:careermate-dev-only-secret-change-me-0123456789abcdef}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:1440}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+  storage:
+    dir: ${RESUME_STORAGE_DIR:./data/resumes}
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+    model: ${GEMINI_MODEL:gemini-2.5-flash}
+    base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
+    timeout-seconds: ${GEMINI_TIMEOUT_SECONDS:30}
+  seed:
+    enabled: ${SEED_DEMO_DATA:true}
+    admin-email: ${ADMIN_EMAIL:admin@careermate.local}
+    admin-password: ${ADMIN_PASSWORD:Admin@12345}
+    demo-email: ${DEMO_USER_EMAIL:demo@careermate.local}
+    demo-password: ${DEMO_USER_PASSWORD:Demo@12345}
+  jobs:
+    sync:
+      enabled: ${JOB_SYNC_ENABLED:true}
+      cron: ${JOB_SYNC_CRON:0 0 */6 * * *}
+      sync-on-startup: ${JOB_SYNC_ON_STARTUP:true}
+      prefer-external: ${JOB_PREFER_EXTERNAL:true}
+      remotive-enabled: ${JOB_SYNC_REMOTIVE:true}
+      arbeitnow-enabled: ${JOB_SYNC_ARBEITNOW:true}
+      max-per-source: ${JOB_SYNC_MAX_PER_SOURCE:50}
+      stale-after-days: ${JOB_SYNC_STALE_DAYS:21}
+      jooble-enabled: ${JOOBLE_ENABLED:false}
+      jooble-api-key: ${JOOBLE_API_KEY:}
+      jooble-keywords: ${JOOBLE_KEYWORDS:software engineer}
+      jooble-location: ${JOOBLE_LOCATION:}
+      jooble-max-pages: ${JOOBLE_MAX_PAGES:5}
+      jsearch-enabled: ${JSEARCH_ENABLED:false}
+      jsearch-api-key: ${JSEARCH_API_KEY:}
+      jsearch-host: ${JSEARCH_HOST:jsearch.p.rapidapi.com}
+      jsearch-query: ${JSEARCH_QUERY:software engineer}
+      jsearch-country: ${JSEARCH_COUNTRY:lk}
+      jsearch-num-pages: ${JSEARCH_NUM_PAGES:1}
+  notifications:
+    cron: ${NOTIFICATION_CRON:0 0 * * * *}

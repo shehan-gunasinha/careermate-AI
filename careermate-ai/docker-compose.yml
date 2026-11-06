@@ -1,0 +1,81 @@
+name: careermate
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-careermate}
+      POSTGRES_USER: ${POSTGRES_USER:-careermate}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-careermate}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-careermate}
+      DB_USERNAME: ${POSTGRES_USER:-careermate}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-careermate}
+      JWT_SECRET: ${JWT_SECRET:-careermate-docker-dev-secret-CHANGE-ME-0123456789abcdef}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-1440}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@careermate.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@12345}
+      DEMO_USER_EMAIL: ${DEMO_USER_EMAIL:-demo@careermate.local}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-Demo@12345}
+      JOB_SYNC_ENABLED: ${JOB_SYNC_ENABLED:-true}
+      JOB_SYNC_CRON: ${JOB_SYNC_CRON:-0 0 */6 * * *}
+      JOB_SYNC_ON_STARTUP: ${JOB_SYNC_ON_STARTUP:-true}
+      JOB_PREFER_EXTERNAL: ${JOB_PREFER_EXTERNAL:-true}
+      JOB_SYNC_REMOTIVE: ${JOB_SYNC_REMOTIVE:-true}
+      JOB_SYNC_ARBEITNOW: ${JOB_SYNC_ARBEITNOW:-true}
+      JOB_SYNC_MAX_PER_SOURCE: ${JOB_SYNC_MAX_PER_SOURCE:-50}
+      JOB_SYNC_STALE_DAYS: ${JOB_SYNC_STALE_DAYS:-21}
+      JOOBLE_ENABLED: ${JOOBLE_ENABLED:-false}
+      JOOBLE_API_KEY: ${JOOBLE_API_KEY:-}
+      JOOBLE_KEYWORDS: ${JOOBLE_KEYWORDS:-software engineer}
+      JOOBLE_LOCATION: ${JOOBLE_LOCATION:-}
+      JOOBLE_MAX_PAGES: ${JOOBLE_MAX_PAGES:-5}
+      JSEARCH_ENABLED: ${JSEARCH_ENABLED:-false}
+      JSEARCH_API_KEY: ${JSEARCH_API_KEY:-}
+      JSEARCH_HOST: ${JSEARCH_HOST:-jsearch.p.rapidapi.com}
+      JSEARCH_QUERY: ${JSEARCH_QUERY:-software engineer}
+      JSEARCH_COUNTRY: ${JSEARCH_COUNTRY:-lk}
+      JSEARCH_NUM_PAGES: ${JSEARCH_NUM_PAGES:-1}
+      RESUME_STORAGE_DIR: /data/resumes
+    volumes:
+      - resumes:/data/resumes
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 60s
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+
+volumes:
+  pgdata:
+  resumes:
