@@ -35,10 +35,13 @@ public final class ProfileDtos {
                                  @Size(max = 30) List<@Size(max = 100) String> preferredLocations) {
     }
 
-    public record ProfileDto(String fullName, String email, String phone, String location, String headline,
+    public record ProfileDto(String fullName, String email, String avatarUrl, String phone, String location, String headline,
                              String careerObjective, EmploymentStatus employmentStatus, Integer yearsOfExperience,
                              List<String> skills, List<EducationDto> education, List<ExperienceDto> experience,
                              PreferencesDto preferences, int completionPercentage) {
+    }
+
+    public record AvatarFile(byte[] bytes, String contentType) {
     }
 
     public record ProfileUpdateRequest(@NotBlank(message = "Full name is required") @Size(max = 150) String fullName,

@@ -99,7 +99,7 @@ export function Modal({ title, onClose, children, wide = false }: { title: strin
       <div className={`card my-8 w-full ${wide ? 'max-w-3xl' : 'max-w-xl'} p-5`}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">{title}</h2>
-          <button className="btn-ghost btn-sm" onClick={onClose} aria-label="Close dialog"><X className="h-4 w-4" /></button>
+          <button type="button" className="btn-ghost btn-sm" onClick={onClose} aria-label="Close dialog"><X className="h-4 w-4" /></button>
         </div>
         {children}
       </div>

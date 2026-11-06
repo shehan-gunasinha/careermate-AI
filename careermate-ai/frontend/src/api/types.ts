@@ -17,6 +17,7 @@ export interface User {
   id: number;
   fullName: string;
   email: string;
+  avatarUrl?: string | null;
   role: 'JOB_SEEKER' | 'RECRUITER' | 'ADMIN';
   createdAt: string;
 }
@@ -111,6 +112,7 @@ export interface Preferences {
 export interface Profile {
   fullName: string;
   email: string;
+  avatarUrl?: string | null;
   phone?: string | null;
   location?: string | null;
   headline?: string | null;

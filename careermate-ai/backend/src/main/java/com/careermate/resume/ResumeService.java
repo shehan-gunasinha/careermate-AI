@@ -72,13 +72,19 @@ public class ResumeService {
         r.setUser(userRepository.getReferenceById(user.getId()));
         r.setTitle(title == null || title.isBlank() ? stripExt(original) : title.trim().substring(0, Math.min(title.trim().length(), 200)));
         r.setOriginalFilename(original);
-        r.setStoragePath(storage.store(user.getId(), bytes, ext));
         r.setContentType("pdf".equals(ext) ? "application/pdf"
                 : "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
         r.setSizeBytes(bytes.length);
         r.setSource(ResumeSource.UPLOAD);
         r.setExtractedText(text);
-        return toDto(resumeRepository.save(r), false);
+        String storagePath = storage.store(user.getId(), bytes, ext);
+        r.setStoragePath(storagePath);
+        try {
+            return toDto(resumeRepository.saveAndFlush(r), false);
+        } catch (RuntimeException e) {
+            storage.delete(storagePath);
+            throw e;
+        }
     }
 
     @Transactional(readOnly = true)
@@ -146,12 +152,18 @@ public class ResumeService {
         r.setUser(userRepository.getReferenceById(user.getId()));
         r.setTitle(req.title().trim());
         r.setOriginalFilename(safeFileBase(req.title()) + ".pdf");
-        r.setStoragePath(storage.store(user.getId(), pdf, "pdf"));
         r.setContentType("application/pdf");
         r.setSizeBytes(pdf.length);
         r.setSource(ResumeSource.BUILT);
         r.setExtractedText(pdfBuilder.toPlainText(req));
-        return toDto(resumeRepository.save(r), false);
+        String storagePath = storage.store(user.getId(), pdf, "pdf");
+        r.setStoragePath(storagePath);
+        try {
+            return toDto(resumeRepository.saveAndFlush(r), false);
+        } catch (RuntimeException e) {
+            storage.delete(storagePath);
+            throw e;
+        }
     }
 
     @Transactional(readOnly = true)

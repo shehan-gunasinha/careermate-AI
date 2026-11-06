@@ -25,6 +25,12 @@ export const profileApi = {
   get: () => data<Profile>(api.get('/profile')),
   update: (p: Record<string, unknown>) => data<Profile>(api.put('/profile', p)),
   updatePreferences: (p: Preferences) => data<Preferences>(api.put('/profile/preferences', p)),
+  uploadAvatar: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return data<Profile>(api.post('/profile/avatar', form));
+  },
+  removeAvatar: () => data<Profile>(api.delete('/profile/avatar')),
 };
 
 export const jobsApi = {

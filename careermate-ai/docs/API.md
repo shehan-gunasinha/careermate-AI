@@ -21,9 +21,12 @@ Interactive documentation: `/swagger-ui.html`.
 ## Profile
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/profile` | includes skills, education, experience, preferences, completion % |
+| GET | `/profile` | includes avatar, skills, education, experience, preferences, completion % |
 | PUT | `/profile` | omitted lists are left unchanged; provided lists replace existing ones |
 | PUT | `/profile/preferences` | `preferredIndustries, preferredRoles, preferredLocations` |
+| POST | `/profile/avatar` | multipart `file` (PNG/JPG/WEBP, max 2 MB) |
+| DELETE | `/profile/avatar` | removes the current picture |
+| GET | `/profile/avatar/{userId}` | public image endpoint used by `<img>` (cache-friendly) |
 
 ## Jobs
 | Method | Path | Notes |

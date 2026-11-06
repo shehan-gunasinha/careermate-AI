@@ -18,6 +18,7 @@ WORKDIR /app
 COPY --from=build /app/target/careermate-backend-*.jar app.jar
 USER careermate
 ENV RESUME_STORAGE_DIR=/data/resumes
+ENV SERVER_PORT=8080
 EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=8 \
   CMD curl -fsS http://localhost:8080/actuator/health || exit 1
