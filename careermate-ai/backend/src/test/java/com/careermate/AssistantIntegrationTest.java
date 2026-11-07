@@ -1,6 +1,7 @@
 package com.careermate;
 
 import com.careermate.ai.GeminiClient;
+import com.careermate.ai.GeminiKeyService;
 import com.careermate.common.exception.AiUnavailableException;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -21,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class AssistantIntegrationTest extends IntegrationTestBase {
     @MockBean GeminiClient gemini;
+    @MockBean GeminiKeyService geminiKeys;
 
     private String ask(String token, String message, Long conversationId) throws Exception {
         Map<String, Object> m = new java.util.HashMap<>();
@@ -32,7 +35,8 @@ class AssistantIntegrationTest extends IntegrationTestBase {
 
     @Test
     void fallbackAnswersWhenNoApiKeyIsConfigured() throws Exception {
-        when(gemini.isConfigured()).thenReturn(false);
+        when(geminiKeys.resolveKey(any())).thenReturn(null);
+        when(geminiKeys.isConfigured(any())).thenReturn(false);
         String token = registerUser();
         var r = mapper.readTree(ask(token, "Give me common interview questions for an accountant", null));
         assertTrue(r.at("/data/aiPowered").asBoolean() == false);
@@ -49,14 +53,15 @@ class AssistantIntegrationTest extends IntegrationTestBase {
 
     @Test
     void usesGeminiWhenAvailableAndFallsBackOnFailure() throws Exception {
-        when(gemini.isConfigured()).thenReturn(true);
-        when(gemini.chat(anyString(), anyList())).thenReturn("Here is AI advice.");
+        when(geminiKeys.resolveKey(any())).thenReturn("test-key");
+        when(geminiKeys.isConfigured(any())).thenReturn(true);
+        when(gemini.chat(eq("test-key"), anyString(), anyList())).thenReturn("Here is AI advice.");
         String token = registerUser();
         var ai = mapper.readTree(ask(token, "Help me plan my career", null));
         assertTrue(ai.at("/data/aiPowered").asBoolean());
         assertTrue(ai.at("/data/reply").asText().equals("Here is AI advice."));
 
-        when(gemini.chat(anyString(), anyList())).thenThrow(new AiUnavailableException("rate limited"));
+        when(gemini.chat(eq("test-key"), anyString(), anyList())).thenThrow(new AiUnavailableException("rate limited"));
         var fb = mapper.readTree(ask(token, "How can I improve my resume?", ai.at("/data/conversationId").asLong()));
         assertTrue(!fb.at("/data/aiPowered").asBoolean());
         assertTrue(fb.at("/data/reply").asText().toLowerCase().contains("resume"));
@@ -64,7 +69,8 @@ class AssistantIntegrationTest extends IntegrationTestBase {
 
     @Test
     void conversationsArePrivateAndCanBeCleared() throws Exception {
-        when(gemini.isConfigured()).thenReturn(false);
+        when(geminiKeys.resolveKey(any())).thenReturn(null);
+        when(geminiKeys.isConfigured(any())).thenReturn(false);
         String owner = registerUser();
         String other = registerUser();
         long conv = mapper.readTree(ask(owner, "hello", null)).at("/data/conversationId").asLong();

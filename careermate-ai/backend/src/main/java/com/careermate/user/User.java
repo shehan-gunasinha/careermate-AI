@@ -6,6 +6,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -31,4 +32,13 @@ public class User extends BaseEntity {
 
     @Column(nullable = false)
     private boolean enabled = true;
+
+    @Column(name = "gemini_api_key_encrypted", columnDefinition = "TEXT")
+    private String geminiApiKeyEncrypted;
+
+    @Column(name = "gemini_api_key_hint", length = 20)
+    private String geminiApiKeyHint;
+
+    @Column(name = "gemini_api_key_updated_at")
+    private Instant geminiApiKeyUpdatedAt;
 }

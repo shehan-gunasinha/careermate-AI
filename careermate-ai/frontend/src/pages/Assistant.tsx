@@ -85,7 +85,7 @@ export default function Assistant() {
   return (
     <div>
       <PageHeader title="CareerMate AI Assistant" subtitle="Ask about jobs, resumes, interviews, salaries and career plans." />
-      {aiEnabled === false && <div className="mb-4"><Alert kind="info">The assistant is in <strong>offline mode</strong> (no Gemini API key configured), so it gives general guidance instead of personalised AI answers.</Alert></div>}
+      {aiEnabled === false && <div className="mb-4"><Alert kind="info">The assistant is in <strong>offline mode</strong> (no Gemini API key configured). Add your key in <strong>Settings</strong> for personalised AI answers; until then it gives general guidance.</Alert></div>}
       <div className="grid gap-4 lg:grid-cols-[16rem_1fr]">
         <aside className="card hidden max-h-[70vh] overflow-y-auto p-3 lg:block" aria-label="Conversation history">
           <button className="btn-primary mb-3 w-full" onClick={newChat}><MessageSquarePlus className="h-4 w-4" />New chat</button>

@@ -47,13 +47,15 @@ app:
   jwt:
     secret: ${JWT_SECRET:careermate-dev-only-secret-change-me-0123456789abcdef}
     expiration-minutes: ${JWT_EXPIRATION_MINUTES:1440}
+  encryption:
+    secret: ${API_KEY_ENCRYPTION_SECRET:}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
   storage:
     dir: ${RESUME_STORAGE_DIR:./data/resumes}
   gemini:
     api-key: ${GEMINI_API_KEY:}
-    model: ${GEMINI_MODEL:gemini-2.5-flash}
+    model: ${GEMINI_MODEL:gemini-3.5-flash}
     base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
     timeout-seconds: ${GEMINI_TIMEOUT_SECONDS:30}
   seed:
@@ -72,10 +74,15 @@ app:
       arbeitnow-enabled: ${JOB_SYNC_ARBEITNOW:true}
       max-per-source: ${JOB_SYNC_MAX_PER_SOURCE:50}
       stale-after-days: ${JOB_SYNC_STALE_DAYS:21}
+      itpro-enabled: ${JOB_SYNC_ITPRO:true}
+      itpro-count: ${ITPRO_COUNT:50}
+      itpro-days-behind: ${ITPRO_DAYS_BEHIND:30}
+      itpro-type: ${ITPRO_TYPE:0}
+      itpro-category: ${ITPRO_CATEGORY:0}
       jooble-enabled: ${JOOBLE_ENABLED:false}
       jooble-api-key: ${JOOBLE_API_KEY:}
       jooble-keywords: ${JOOBLE_KEYWORDS:software engineer}
-      jooble-location: ${JOOBLE_LOCATION:}
+      jooble-location: ${JOOBLE_LOCATION:Sri Lanka}
       jooble-max-pages: ${JOOBLE_MAX_PAGES:5}
       jsearch-enabled: ${JSEARCH_ENABLED:false}
       jsearch-api-key: ${JSEARCH_API_KEY:}
@@ -85,3 +92,16 @@ app:
       jsearch-num-pages: ${JSEARCH_NUM_PAGES:1}
   notifications:
     cron: ${NOTIFICATION_CRON:0 0 * * * *}
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    from: ${MAIL_FROM:no-reply@careermate.local}
+    from-name: ${MAIL_FROM_NAME:CareerMate AI}
+    smtp-auth: ${MAIL_SMTP_AUTH:true}
+    starttls: ${MAIL_SMTP_STARTTLS:true}
+  password-reset:
+    otp-expiry-minutes: ${PASSWORD_RESET_OTP_EXPIRY_MINUTES:10}
+    resend-cooldown-seconds: ${PASSWORD_RESET_RESEND_COOLDOWN_SECONDS:60}
+    max-attempts: ${PASSWORD_RESET_MAX_ATTEMPTS:5}

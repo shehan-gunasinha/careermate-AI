@@ -6,7 +6,7 @@ import type { Job } from '../api/types';
 import JobCard from '../components/JobCard';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { SimpleMarkdown } from '../components/SimpleMarkdown';
-import { ScoreRing } from '../components/ui';
+import { ConfirmDialog, ScoreRing } from '../components/ui';
 import { AuthProvider } from '../context/AuthContext';
 import { validateRegistration } from '../pages/Register';
 import { formatSalary } from '../lib/format';
@@ -51,6 +51,27 @@ describe('ProtectedRoute', () => {
     );
     expect(screen.getByText('Login screen')).toBeInTheDocument();
     expect(screen.queryByText('Secret')).not.toBeInTheDocument();
+  });
+});
+
+describe('ConfirmDialog', () => {
+  it('renders an in-app dialog and runs confirm or cancel callbacks', async () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    render(
+      <ConfirmDialog
+        title="Log out?"
+        message="You will need to sign in again."
+        confirmLabel="Log out"
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />,
+    );
+    expect(screen.getByRole('dialog', { name: 'Log out?' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Log out' }));
+    expect(onConfirm).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onCancel).toHaveBeenCalledOnce();
   });
 });
 

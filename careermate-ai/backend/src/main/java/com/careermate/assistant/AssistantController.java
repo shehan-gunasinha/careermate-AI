@@ -31,8 +31,8 @@ public class AssistantController {
     }
 
     @GetMapping("/status")
-    public ApiResponse<StatusDto> status() {
-        boolean ai = service.aiEnabled();
+    public ApiResponse<StatusDto> status(@AuthenticationPrincipal User user) {
+        boolean ai = service.aiEnabled(user);
         return ApiResponse.ok(new StatusDto(ai, ai ? "AI" : "FALLBACK"));
     }
 

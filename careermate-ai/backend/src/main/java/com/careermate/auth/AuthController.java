@@ -2,8 +2,10 @@ package com.careermate.auth;
 
 import com.careermate.auth.AuthDtos.AuthResponse;
 import com.careermate.auth.AuthDtos.ChangePasswordRequest;
+import com.careermate.auth.AuthDtos.ForgotPasswordRequest;
 import com.careermate.auth.AuthDtos.LoginRequest;
 import com.careermate.auth.AuthDtos.RegisterRequest;
+import com.careermate.auth.AuthDtos.ResetPasswordRequest;
 import com.careermate.auth.AuthDtos.UserDto;
 import com.careermate.common.response.ApiResponse;
 import com.careermate.user.User;
@@ -36,6 +38,18 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<AuthResponse> login(@Valid @RequestBody LoginRequest req) {
         return ApiResponse.ok("Login successful", authService.login(req));
+    }
+
+    @PostMapping("/forgot-password")
+    public ApiResponse<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest req) {
+        authService.requestPasswordReset(req);
+        return ApiResponse.ok("If an account exists for this email, a reset code has been sent.", null);
+    }
+
+    @PostMapping("/reset-password")
+    public ApiResponse<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
+        authService.resetPassword(req);
+        return ApiResponse.ok("Your password has been reset. You can now log in.", null);
     }
 
     @GetMapping("/me")

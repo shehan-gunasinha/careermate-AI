@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react';
 import { scoreBg, scoreColor } from '../lib/format';
 
@@ -102,6 +102,48 @@ export function Modal({ title, onClose, children, wide = false }: { title: strin
           <button type="button" className="btn-ghost btn-sm" onClick={onClose} aria-label="Close dialog"><X className="h-4 w-4" /></button>
         </div>
         {children}
+      </div>
+    </div>
+  );
+}
+
+export function ConfirmDialog({
+  title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', tone = 'danger', busy = false, onConfirm, onCancel,
+}: {
+  title: string;
+  message: ReactNode;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  tone?: 'danger' | 'primary';
+  busy?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape' && !busy) onCancel();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [busy, onCancel]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+      role="presentation"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !busy) onCancel();
+      }}
+    >
+      <div className="card w-full max-w-sm p-5 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title">
+        <h2 id="confirm-dialog-title" className="text-lg font-semibold">{title}</h2>
+        <div className="mt-2 text-sm text-slate-600">{message}</div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" className="btn-secondary" onClick={onCancel} disabled={busy} autoFocus>{cancelLabel}</button>
+          <button type="button" className={tone === 'danger' ? 'btn-danger' : 'btn-primary'} onClick={onConfirm} disabled={busy}>
+            {busy ? 'Working...' : confirmLabel}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 package com.careermate.ai;
 
 import com.careermate.common.exception.AiUnavailableException;
+import com.careermate.common.exception.BadRequestException;
 import com.careermate.config.AppProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,8 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * Thin wrapper around the Google Gemini REST API. The API key is only ever read from server-side
- * configuration (GEMINI_API_KEY) and is sent in a request header, never exposed to the browser.
+ * Thin wrapper around the Google Gemini REST API. API keys are supplied by the backend only and are sent
+ * in a request header, never exposed to the browser.
  */
 @Slf4j
 @Component
@@ -43,18 +44,58 @@ public class GeminiClient {
         this.http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     }
 
+    /** Whether the shared server-side key is configured. */
     public boolean isConfigured() {
         return cfg.getApiKey() != null && !cfg.getApiKey().isBlank();
     }
 
+    /** Shared server-side key, read only by backend services. */
+    public String serverApiKey() {
+        return cfg.getApiKey();
+    }
+
+    /** Verifies that Google accepts the supplied key without generating content or exposing the key. */
+    public void validateApiKey(String apiKey) {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new BadRequestException("Enter your Gemini API key");
+        }
+        try {
+            HttpRequest req = HttpRequest.newBuilder(URI.create(cfg.getBaseUrl() + "/models?pageSize=1"))
+                    .timeout(Duration.ofSeconds(Math.min(cfg.getTimeoutSeconds(), 15)))
+                    .header("x-goog-api-key", apiKey)
+                    .GET()
+                    .build();
+            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() == 429) {
+                return;
+            }
+            if (resp.statusCode() == 400 || resp.statusCode() == 401 || resp.statusCode() == 403) {
+                throw new BadRequestException("That Gemini API key was rejected by Google. Please check it and try again.");
+            }
+            if (resp.statusCode() >= 500) {
+                throw new AiUnavailableException("Google could not verify the API key right now. Please try again shortly.");
+            }
+            if (resp.statusCode() >= 400) {
+                throw new AiUnavailableException("Could not verify the API key with the configured Gemini endpoint.");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AiUnavailableException("API key verification was interrupted", e);
+        } catch (IOException e) {
+            throw new AiUnavailableException("Could not reach Google to verify the API key. Please try again.", e);
+        } catch (IllegalArgumentException e) {
+            throw new AiUnavailableException("Gemini is misconfigured", e);
+        }
+    }
+
     /** Multi-turn chat; returns plain text. */
-    public String chat(String systemInstruction, List<Turn> turns) {
-        return call(systemInstruction, turns, false);
+    public String chat(String apiKey, String systemInstruction, List<Turn> turns) {
+        return call(apiKey, systemInstruction, turns, false);
     }
 
     /** Single prompt that must return a JSON object. */
-    public JsonNode generateJson(String systemInstruction, String prompt) {
-        String raw = call(systemInstruction, List.of(Turn.user(prompt)), true);
+    public JsonNode generateJson(String apiKey, String systemInstruction, String prompt) {
+        String raw = call(apiKey, systemInstruction, List.of(Turn.user(prompt)), true);
         String cleaned = raw.trim();
         if (cleaned.startsWith("```")) {
             cleaned = cleaned.replaceFirst("^```(?:json)?", "").replaceFirst("```\\s*$", "").trim();
@@ -70,9 +111,9 @@ public class GeminiClient {
         }
     }
 
-    private String call(String systemInstruction, List<Turn> turns, boolean json) {
-        if (!isConfigured()) {
-            throw new AiUnavailableException("AI service is not configured (GEMINI_API_KEY is missing)");
+    private String call(String apiKey, String systemInstruction, List<Turn> turns, boolean json) {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new AiUnavailableException("No Gemini API key is configured for this account");
         }
         ObjectNode body = mapper.createObjectNode();
         if (systemInstruction != null && !systemInstruction.isBlank()) {
@@ -93,7 +134,7 @@ public class GeminiClient {
             HttpRequest req = HttpRequest.newBuilder(URI.create(cfg.getBaseUrl() + "/models/" + cfg.getModel() + ":generateContent"))
                     .timeout(Duration.ofSeconds(cfg.getTimeoutSeconds()))
                     .header("Content-Type", "application/json")
-                    .header("x-goog-api-key", cfg.getApiKey())
+                    .header("x-goog-api-key", apiKey)
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)))
                     .build();
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());

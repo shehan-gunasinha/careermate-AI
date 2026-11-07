@@ -1,6 +1,6 @@
 package com.careermate.dashboard;
 
-import com.careermate.ai.GeminiClient;
+import com.careermate.ai.GeminiKeyService;
 import com.careermate.applications.ApplicationHistoryRepository;
 import com.careermate.applications.ApplicationRepository;
 import com.careermate.applications.ApplicationStatus;
@@ -42,7 +42,7 @@ public class DashboardService {
     private final NotificationRepository notificationRepository;
     private final ProfileService profileService;
     private final JobService jobService;
-    private final GeminiClient gemini;
+    private final GeminiKeyService geminiKeys;
 
     @Transactional(readOnly = true)
     public DashboardDto build(User user) {
@@ -88,7 +88,7 @@ public class DashboardService {
         return new DashboardDto(user.getFullName(), completion, savedJobs(uid), total,
                 counts.getOrDefault(ApplicationStatus.INTERVIEW_SCHEDULED, 0L), counts.getOrDefault(ApplicationStatus.REJECTED, 0L),
                 counts.getOrDefault(ApplicationStatus.OFFER_RECEIVED, 0L), breakdown, recommended, recent, activities,
-                interviews, resumeSummary, suggestions, notificationRepository.countByUserIdAndReadFalse(uid), gemini.isConfigured());
+                interviews, resumeSummary, suggestions, notificationRepository.countByUserIdAndReadFalse(uid), geminiKeys.isConfigured(user));
     }
 
     private long savedJobs(Long uid) {
