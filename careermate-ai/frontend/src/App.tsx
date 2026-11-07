@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Applications from './pages/Applications';
 import Assistant from './pages/Assistant';
 import Dashboard from './pages/Dashboard';
+import ForgotPassword from './pages/ForgotPassword';
 import JobDetail from './pages/JobDetail';
 import Jobs from './pages/Jobs';
 import Landing from './pages/Landing';
@@ -23,6 +24,7 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<Dashboard />} />

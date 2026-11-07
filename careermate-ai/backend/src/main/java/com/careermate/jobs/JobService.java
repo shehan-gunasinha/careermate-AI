@@ -69,20 +69,20 @@ public class JobService {
     @Transactional(readOnly = true)
     public PageResponse<JobDto> recommended(User user, int page, int size) {
         CandidateContext ctx = contextService.build(user);
+        MatchingService.PreparedCandidate prepared = matchingService.prepare(ctx);
         Set<Long> saved = savedJobRepository.findJobIdsByUserId(user.getId());
         List<Job> open = jobRepository.findOpenJobs(LocalDate.now(), PageRequest.of(0, 300));
-        if (props.getJobs().getSync().isPreferExternal()) {
-            List<Job> live = open.stream().filter(j -> !j.isDemo()).toList();
-            if (!live.isEmpty()) {
-                open = live;
-            }
-        }
         Map<Long, Integer> scores = new HashMap<>();
         for (Job j : open) {
-            scores.put(j.getId(), matchingService.quickScore(ctx, j));
+            scores.put(j.getId(), matchingService.quickScore(ctx, prepared, j));
         }
+        Comparator<Job> byScore = Comparator.<Job>comparingInt(j -> scores.get(j.getId())).reversed();
+        // Real listings stay ahead of demo fallback jobs, but demo jobs are kept so the feed is never empty.
+        Comparator<Job> order = props.getJobs().getSync().isPreferExternal()
+                ? Comparator.<Job, Boolean>comparing(Job::isDemo).thenComparing(byScore)
+                : byScore;
         List<JobDto> ranked = open.stream()
-                .sorted(Comparator.<Job>comparingInt(j -> scores.get(j.getId())).reversed())
+                .sorted(order)
                 .map(j -> toDto(j, saved.contains(j.getId()), scores.get(j.getId())))
                 .toList();
         return PageResponse.of(ranked, Math.max(0, page), Math.max(1, Math.min(size, 50)));

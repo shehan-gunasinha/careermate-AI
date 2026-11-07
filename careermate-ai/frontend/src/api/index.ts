@@ -1,8 +1,8 @@
 import api from './client';
 import type {
   ApiResponse, Application, ApplicationHistory, ApplicationInput, ApplicationStatus, AppNotification, AssistantReply,
-  AuthResponse, ChatMessage, Conversation, Dashboard, Job, JobFilters, MatchResult, PageResponse, Preferences, Profile,
-  Resume, ResumeAnalysis, ResumeBuildInput, User,
+  AuthResponse, ChatMessage, Conversation, Dashboard, GeminiKeyStatus, Job, JobFilters, MatchResult, PageResponse,
+  Preferences, Profile, Resume, ResumeAnalysis, ResumeBuildInput, User,
 } from './types';
 
 const data = <T>(p: Promise<{ data: ApiResponse<T> }>): Promise<T> => p.then((r) => r.data.data);
@@ -17,6 +17,9 @@ export const authApi = {
   logout: () => data<null>(api.post('/auth/logout')),
   changePassword: (currentPassword: string, newPassword: string, confirmPassword: string) =>
     data<null>(api.put('/auth/password', { currentPassword, newPassword, confirmPassword })),
+  forgotPassword: (email: string) => data<null>(api.post('/auth/forgot-password', { email })),
+  resetPassword: (email: string, otp: string, newPassword: string, confirmPassword: string) =>
+    data<null>(api.post('/auth/reset-password', { email, otp, newPassword, confirmPassword })),
 };
 
 export const dashboardApi = { get: () => data<Dashboard>(api.get('/dashboard')) };
@@ -89,6 +92,12 @@ export const notificationApi = {
   unreadCount: () => data<{ count: number }>(api.get('/notifications/unread-count')),
   read: (id: number) => data<AppNotification>(api.patch(`/notifications/${id}/read`)),
   readAll: () => data<{ updated: number }>(api.patch('/notifications/read-all')),
+};
+
+export const geminiKeyApi = {
+  status: () => data<GeminiKeyStatus>(api.get('/ai/gemini-key')),
+  save: (apiKey: string) => data<GeminiKeyStatus>(api.put('/ai/gemini-key', { apiKey })),
+  remove: () => data<GeminiKeyStatus>(api.delete('/ai/gemini-key')),
 };
 
 export const assistantApi = {

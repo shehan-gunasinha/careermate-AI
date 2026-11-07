@@ -233,6 +233,14 @@ export interface AssistantReply {
   createdAt: string;
 }
 
+export interface GeminiKeyStatus {
+  configured: boolean;
+  hint?: string | null;
+  serverKeyConfigured: boolean;
+  aiEnabled: boolean;
+  updatedAt?: string | null;
+}
+
 export interface Dashboard {
   fullName: string;
   profileCompletion: number;

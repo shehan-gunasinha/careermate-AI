@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
@@ -52,7 +53,30 @@ public final class SkillCatalog {
 
     private static final Map<String, Pattern> PATTERNS = new ConcurrentHashMap<>();
 
+    /** Short skills that are also common English words; they must not be inferred from free text. */
+    private static final Set<String> AMBIGUOUS_TEXT_TERMS = Set.of("go");
+
     private SkillCatalog() {
+    }
+
+    public static boolean isAmbiguous(String term) {
+        return term != null && AMBIGUOUS_TEXT_TERMS.contains(term.trim().toLowerCase(Locale.ROOT));
+    }
+
+    /** True when the canonical skill or one of its known synonyms appears as a standalone term. */
+    public static boolean textMentionsSkill(String textLower, String canonicalNorm) {
+        if (textLower == null || canonicalNorm == null || canonicalNorm.isBlank()) {
+            return false;
+        }
+        if (!isAmbiguous(canonicalNorm) && containsTerm(textLower, canonicalNorm)) {
+            return true;
+        }
+        for (Map.Entry<String, String> e : SYNONYMS.entrySet()) {
+            if (canonicalNorm.equals(e.getValue()) && !isAmbiguous(e.getKey()) && containsTerm(textLower, e.getKey())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static String normalize(String skill) {
@@ -81,12 +105,20 @@ public final class SkillCatalog {
         }
         String lower = text.toLowerCase(Locale.ROOT);
         for (String skill : SKILLS) {
+            if (isAmbiguous(skill)) {
+                continue;
+            }
             if (containsTerm(lower, skill.toLowerCase(Locale.ROOT))) {
                 found.add(skill);
             }
         }
+        // "Go" is too ambiguous on its own, so only infer it from "golang" or an explicit job title.
+        if (!found.contains("Go")
+                && (containsTerm(lower, "golang") || lower.matches("(?s).*\\bgo\\s+(developer|engineer|programmer)\\b.*"))) {
+            found.add("Go");
+        }
         for (Map.Entry<String, String> e : SYNONYMS.entrySet()) {
-            if (e.getKey().length() > 3 && containsTerm(lower, e.getKey())) {
+            if (e.getKey().length() > 3 && !isAmbiguous(e.getKey()) && containsTerm(lower, e.getKey())) {
                 String canonical = SKILLS.stream().filter(s -> s.equalsIgnoreCase(e.getValue())).findFirst().orElse(null);
                 if (canonical != null && !found.contains(canonical)) {
                     found.add(canonical);

@@ -81,8 +81,8 @@ public class ResumeController {
     }
 
     @PostMapping("/suggest")
-    public ApiResponse<SuggestResponse> suggest(@Valid @RequestBody SuggestRequest req) {
-        return ApiResponse.ok(resumeService.suggest(req));
+    public ApiResponse<SuggestResponse> suggest(@AuthenticationPrincipal User user, @Valid @RequestBody SuggestRequest req) {
+        return ApiResponse.ok(resumeService.suggest(user, req));
     }
 
     @GetMapping("/{id}/download")

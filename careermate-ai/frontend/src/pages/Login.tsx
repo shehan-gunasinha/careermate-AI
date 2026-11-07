@@ -48,7 +48,10 @@ export default function Login() {
             <input id="email" type="email" autoComplete="email" className="input" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div>
-            <label htmlFor="password" className="label">Password</label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className="label">Password</label>
+              <Link to="/forgot-password" className="mb-1 text-xs font-semibold text-brand-600 hover:underline">Forgot password?</Link>
+            </div>
             <input id="password" type="password" autoComplete="current-password" className="input" value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
           <button type="submit" className="btn-primary w-full" disabled={busy}>{busy ? 'Signing in...' : 'Log in'}</button>

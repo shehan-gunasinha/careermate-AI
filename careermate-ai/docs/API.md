@@ -11,6 +11,8 @@ Interactive documentation: `/swagger-ui.html`.
 |---|---|---|
 | POST | `/auth/register` | `fullName, email, password, confirmPassword` -> token + user (201) |
 | POST | `/auth/login` | `email, password` |
+| POST | `/auth/forgot-password` | `email` - emails a 6-digit reset code; same response for unknown emails |
+| POST | `/auth/reset-password` | `email, otp, newPassword, confirmPassword` |
 | GET | `/auth/me` | current user |
 | POST | `/auth/logout` | revokes the presented token |
 | PUT | `/auth/password` | `currentPassword, newPassword, confirmPassword` |
@@ -74,6 +76,13 @@ Statuses: SAVED, APPLIED, UNDER_REVIEW, SHORTLISTED, INTERVIEW_SCHEDULED, ASSESS
 | GET | `/career-assistant/conversations` | |
 | GET | `/career-assistant/conversations/{id}/messages` | |
 | DELETE | `/career-assistant/conversations/{id}` | clear a conversation |
+
+## AI key
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/ai/gemini-key` | `configured, hint, serverKeyConfigured, aiEnabled, updatedAt`; never returns the full key |
+| PUT | `/ai/gemini-key` | `apiKey` - validates with Google, then encrypts and saves it for the current user |
+| DELETE | `/ai/gemini-key` | removes the current user's key; falls back to the shared server key or built-in logic |
 
 ## Notifications
 `GET /notifications?unreadOnly&page&size`, `GET /notifications/unread-count`, `PATCH /notifications/{id}/read`, `PATCH /notifications/read-all`.

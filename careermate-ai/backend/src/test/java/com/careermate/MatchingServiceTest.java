@@ -1,6 +1,7 @@
 package com.careermate;
 
 import com.careermate.ai.GeminiClient;
+import com.careermate.ai.GeminiKeyService;
 import com.careermate.common.exception.AiUnavailableException;
 import com.careermate.jobs.EmploymentType;
 import com.careermate.jobs.ExperienceLevel;
@@ -16,6 +17,7 @@ import com.careermate.matching.MatchingService;
 import com.careermate.user.User;
 import com.careermate.user.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,11 +45,12 @@ class MatchingServiceTest {
     @Mock UserRepository userRepository;
     @Mock CandidateContextService contextService;
     @Mock GeminiClient gemini;
+    @Mock GeminiKeyService geminiKeys;
     MatchingService service;
 
     @BeforeEach
     void setUp() {
-        service = new MatchingService(jobRepository, matchRepository, userRepository, contextService, gemini);
+        service = new MatchingService(jobRepository, matchRepository, userRepository, contextService, gemini, geminiKeys);
     }
 
     private Job job(String title, ExperienceLevel level, String industry, String qualifications, String... required) {
@@ -122,6 +126,40 @@ class MatchingServiceTest {
     }
 
     @Test
+    void resumeSynonymsMatchRequiredSkills() {
+        Job j = job("Cloud Engineer", ExperienceLevel.MID, "IT", null, "Spring Boot", "AWS");
+        MatchResult r = service.basic(candidate(4, 3, List.of(),
+                "Built services with Spring and deployed to Amazon Web Services"), j);
+        assertTrue(r.missingSkills().isEmpty(), "missing " + r.missingSkills());
+    }
+
+    @Test
+    void ambiguousShortTermsAreNotMatchedFromProse() {
+        Job j = job("Go Developer", ExperienceLevel.MID, "IT", null, "Go");
+        MatchResult r = service.basic(candidate(4, 3, List.of(),
+                "I go to market daily and manage go-to-market plans"), j);
+        assertEquals(List.of("Go"), r.missingSkills());
+    }
+
+    @Test
+    void recentJobsScoreHigherThanOldOnes() {
+        Job recent = job("Java Developer", ExperienceLevel.JUNIOR, "IT", null, "Java");
+        recent.setPostedDate(LocalDate.now());
+        Job old = job("Java Developer", ExperienceLevel.JUNIOR, "IT", null, "Java");
+        old.setPostedDate(LocalDate.now().minusDays(200));
+        CandidateContext ctx = candidate(2, 3, List.of("Java"), null);
+        assertTrue(service.basic(ctx, recent).score() > service.basic(ctx, old).score());
+    }
+
+    @Test
+    void preparedCandidateGivesSameScoreAsBasic() {
+        Job j = job("Java Developer", ExperienceLevel.JUNIOR, "IT", null, "Java", "SQL");
+        CandidateContext ctx = candidate(2, 3, List.of("Java"), "SQL and Java");
+        MatchingService.PreparedCandidate prepared = service.prepare(ctx);
+        assertEquals(service.basic(ctx, j).score(), service.quickScore(ctx, prepared, j));
+    }
+
+    @Test
     void aiResultIsBlendedWhenGeminiResponds() throws Exception {
         Job j = job("Developer", ExperienceLevel.JUNIOR, "IT", null, "Java", "Kubernetes");
         j.setId(5L);
@@ -129,8 +167,8 @@ class MatchingServiceTest {
         when(jobRepository.findById(5L)).thenReturn(Optional.of(j));
         when(contextService.build(any(User.class))).thenReturn(ctx);
         when(matchRepository.findByUserIdAndJobId(anyLong(), anyLong())).thenReturn(Optional.empty());
-        when(gemini.isConfigured()).thenReturn(true);
-        when(gemini.generateJson(anyString(), anyString())).thenReturn(new ObjectMapper().readTree(
+        when(geminiKeys.resolveKey(any(User.class))).thenReturn("test-key");
+        when(gemini.generateJson(eq("test-key"), anyString(), anyString())).thenReturn(new ObjectMapper().readTree(
                 "{\"score\":100,\"matchingSkills\":[\"Java\"],\"missingSkills\":[\"Kubernetes\"],\"strengths\":[\"Good\"],\"improvements\":[\"Learn K8s\"],\"recommendations\":[\"Do a course\"]}"));
         User u = new User();
         u.setId(1L);
@@ -148,8 +186,8 @@ class MatchingServiceTest {
         when(jobRepository.findById(6L)).thenReturn(Optional.of(j));
         when(contextService.build(any(User.class))).thenReturn(candidate(1, 3, List.of("Java"), null));
         when(matchRepository.findByUserIdAndJobId(anyLong(), anyLong())).thenReturn(Optional.empty());
-        when(gemini.isConfigured()).thenReturn(true);
-        when(gemini.generateJson(anyString(), anyString())).thenThrow(new AiUnavailableException("timeout"));
+        when(geminiKeys.resolveKey(any(User.class))).thenReturn("test-key");
+        when(gemini.generateJson(eq("test-key"), anyString(), anyString())).thenThrow(new AiUnavailableException("timeout"));
         User u = new User();
         u.setId(1L);
         MatchResult r = service.match(u, 6L);

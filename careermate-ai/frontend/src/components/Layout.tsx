@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { notificationApi } from '../api';
 import { useAuth } from '../context/AuthContext';
+import { ConfirmDialog } from './ui';
 
 const NAV = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -24,6 +25,8 @@ export default function Layout() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const initials = (user?.fullName ?? '').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
 
   useEffect(() => setOpen(false), [location.pathname]);
@@ -43,8 +46,13 @@ export default function Layout() {
   }, [location.pathname]);
 
   const doLogout = async () => {
-    await logout();
-    navigate('/login');
+    setLoggingOut(true);
+    try {
+      await logout();
+      navigate('/login');
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   const sidebar = (
@@ -82,7 +90,7 @@ export default function Layout() {
             <div className="truncate">{user?.email}</div>
           </div>
         </div>
-        <button onClick={doLogout} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-navy-200 hover:bg-white/5 hover:text-white">
+        <button onClick={() => setConfirmLogout(true)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-navy-200 hover:bg-white/5 hover:text-white">
           <LogOut className="h-[18px] w-[18px]" aria-hidden /> Logout
         </button>
       </div>
@@ -113,6 +121,17 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {confirmLogout && (
+        <ConfirmDialog
+          title="Log out?"
+          message="You will need to sign in again to access your CareerMate AI account."
+          confirmLabel="Log out"
+          busy={loggingOut}
+          onConfirm={doLogout}
+          onCancel={() => setConfirmLogout(false)}
+        />
+      )}
     </div>
   );
 }

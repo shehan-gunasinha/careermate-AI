@@ -2,6 +2,7 @@ package com.careermate.assistant;
 
 import com.careermate.ai.GeminiClient;
 import com.careermate.ai.GeminiClient.Turn;
+import com.careermate.ai.GeminiKeyService;
 import com.careermate.assistant.AssistantDtos.AssistantRequest;
 import com.careermate.assistant.AssistantDtos.AssistantResponse;
 import com.careermate.assistant.AssistantDtos.ConversationDto;
@@ -37,6 +38,7 @@ public class AssistantService {
     private final UserRepository userRepository;
     private final CandidateContextService contextService;
     private final GeminiClient gemini;
+    private final GeminiKeyService geminiKeys;
     private final FallbackAssistant fallback;
 
     @Transactional
@@ -62,7 +64,8 @@ public class AssistantService {
 
         String reply;
         boolean ai = false;
-        if (gemini.isConfigured()) {
+        String apiKey = geminiKeys.resolveKey(user);
+        if (apiKey != null && !apiKey.isBlank()) {
             try {
                 String system = SYSTEM + (ctx != null && ctx.hasData()
                         ? "\n\nThe user has authorised use of their CareerMate profile for personalisation:\n" + ctx.toPrompt() : "");
@@ -71,7 +74,7 @@ public class AssistantService {
                     turns.add("USER".equals(m.getSender()) ? Turn.user(m.getContent()) : Turn.model(m.getContent()));
                 }
                 turns.add(Turn.user(text));
-                reply = gemini.chat(system, turns);
+                reply = gemini.chat(apiKey, system, turns);
                 ai = true;
             } catch (AiUnavailableException e) {
                 log.info("Gemini unavailable for assistant, using fallback: {}", e.getMessage());
@@ -110,8 +113,8 @@ public class AssistantService {
         conversationRepository.delete(c);
     }
 
-    public boolean aiEnabled() {
-        return gemini.isConfigured();
+    public boolean aiEnabled(User user) {
+        return geminiKeys.isConfigured(user);
     }
 
     private ChatMessage save(ChatConversation conv, String sender, String content, boolean ai) {

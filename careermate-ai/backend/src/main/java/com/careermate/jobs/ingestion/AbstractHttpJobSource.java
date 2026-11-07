@@ -45,6 +45,26 @@ abstract class AbstractHttpJobSource implements ExternalJobSource {
         return send(builder.build(), url);
     }
 
+    /**
+     * Some job boards return a JavaScript assignment such as {@code var jobs = [...];}.
+     * Extracts the JSON array before parsing.
+     */
+    protected JsonNode getJsonFromScriptArray(String url) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(30))
+                .header("Accept", "application/json").header("User-Agent", "CareerMateAI/1.0").GET().build();
+        HttpResponse<String> resp = http.send(request, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() >= 400) {
+            throw new IOException("HTTP " + resp.statusCode() + " from " + url);
+        }
+        String body = resp.body() == null ? "" : resp.body().trim();
+        int start = body.indexOf('[');
+        int end = body.lastIndexOf(']');
+        if (start >= 0 && end > start) {
+            body = body.substring(start, end + 1);
+        }
+        return mapper.readTree(body);
+    }
+
     private JsonNode send(HttpRequest request, String url) throws IOException, InterruptedException {
         HttpResponse<String> resp = http.send(request, HttpResponse.BodyHandlers.ofString());
         if (resp.statusCode() >= 400) {

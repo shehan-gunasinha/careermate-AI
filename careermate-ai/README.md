@@ -16,7 +16,7 @@ application tracking, notifications and an AI career assistant, for every indust
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS, React Router, Axios, Lucide icons, Recharts |
 | Backend | Java 21, Spring Boot 3.3, Spring Security, Spring Data JPA, JWT (jjwt), Maven |
 | Database | PostgreSQL 16, Flyway migrations |
-| AI | Google Gemini API (server side only) with rule-based fallbacks |
+| AI | Google Gemini API (server side; per-user keys encrypted at rest) with rule-based fallbacks |
 | Files | PDFBox (PDF text), Apache POI (DOCX text), OpenPDF (PDF export) |
 | Ops | Docker, Docker Compose, Nginx reverse proxy, Spring Actuator health checks |
 | Tests | JUnit 5, Mockito, Spring Boot Test + MockMvc (H2), Vitest + React Testing Library |
@@ -52,7 +52,8 @@ createdb careermate   # and a user matching DB_USERNAME / DB_PASSWORD (defaults:
 # 2. Backend (http://localhost:8081) - Flyway creates the schema and demo jobs on first start
 cd backend
 export JWT_SECRET="$(openssl rand -base64 48)"
-export GEMINI_API_KEY=            # optional
+export API_KEY_ENCRYPTION_SECRET="$(openssl rand -base64 48)"   # optional; defaults to JWT_SECRET
+export GEMINI_API_KEY=            # optional shared key; users can also add their own in Settings
 mvn spring-boot:run
 
 # 3. Frontend (http://localhost:5173) - Vite proxies /api to localhost:8081
@@ -69,19 +70,27 @@ npm run dev
 | `JWT_SECRET` | dev value | HMAC key, **at least 32 characters**; always override in production |
 | `JWT_EXPIRATION_MINUTES` | `1440` | Token lifetime |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:3000` | Comma-separated origins |
+| `API_KEY_ENCRYPTION_SECRET` | falls back to `JWT_SECRET` | Encrypts per-user Gemini keys at rest; use a separate long random value in production |
 | `RESUME_STORAGE_DIR` | `./data/resumes` (`/data/resumes` in Docker) | Where uploaded/built resume files live |
-| `GEMINI_API_KEY` | empty | Enables AI features; empty = fallback mode |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Gemini model id |
+| `GEMINI_API_KEY` | empty | Optional shared server key. Users can add their own key in Settings; empty = fallback mode |
+| `GEMINI_MODEL` | `gemini-3.5-flash` | Gemini model id |
 | `GEMINI_TIMEOUT_SECONDS` | `30` | Request timeout |
+| `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` | empty / `587` | SMTP server for password-reset codes. Empty host = code is logged to the backend console (dev only) |
+| `MAIL_FROM`, `MAIL_FROM_NAME` | `no-reply@careermate.local`, `CareerMate AI` | Sender address/name |
+| `MAIL_SMTP_AUTH`, `MAIL_SMTP_STARTTLS` | `true`, `true` | SMTP security options |
+| `PASSWORD_RESET_OTP_EXPIRY_MINUTES` | `10` | Reset code lifetime |
+| `PASSWORD_RESET_RESEND_COOLDOWN_SECONDS` | `60` | Minimum wait before another code is emailed |
+| `PASSWORD_RESET_MAX_ATTEMPTS` | `5` | Wrong-code attempts before the code is invalidated |
 | `SEED_DEMO_DATA` | `true` | Create demo + admin users |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `DEMO_USER_EMAIL` / `DEMO_USER_PASSWORD` | see `.env.example` | Seed account credentials |
 | `JOB_SYNC_ENABLED` | `true` | Scheduled external job sync |
 | `JOB_SYNC_CRON` | `0 0 */6 * * *` | Sync schedule (Spring cron) |
 | `JOB_SYNC_ON_STARTUP` | `true` | Import real listings on first startup when no external jobs exist |
-| `JOB_PREFER_EXTERNAL` | `true` | Rank recommendations on live external jobs instead of seeded demo jobs |
-| `JOB_SYNC_REMOTIVE`, `JOB_SYNC_ARBEITNOW` | `true` | Enable individual keyless sources |
+| `JOB_PREFER_EXTERNAL` | `true` | Keep live external listings ahead of seeded demo jobs in recommendations (demo jobs remain as fallback) |
+| `JOB_SYNC_ITPRO`, `JOB_SYNC_REMOTIVE`, `JOB_SYNC_ARBEITNOW` | `true` | Enable individual keyless sources |
+| `ITPRO_COUNT`, `ITPRO_DAYS_BEHIND`, `ITPRO_TYPE`, `ITPRO_CATEGORY` | `50`, `30`, `0`, `0` | ITPro.lk query settings (0 = all types/categories) |
 | `JOOBLE_ENABLED`, `JOOBLE_API_KEY` | `false`, empty | Jooble aggregator (free key from https://jooble.org/api/about); disabled until a key is set |
-| `JOOBLE_KEYWORDS`, `JOOBLE_LOCATION`, `JOOBLE_MAX_PAGES` | `software engineer`, empty, `5` | Jooble search query settings |
+| `JOOBLE_KEYWORDS`, `JOOBLE_LOCATION`, `JOOBLE_MAX_PAGES` | `software engineer`, `Sri Lanka`, `5` | Jooble search query settings |
 | `JSEARCH_ENABLED`, `JSEARCH_API_KEY` | `false`, empty | JSearch on RapidAPI (https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch); disabled until a key is set |
 | `JSEARCH_QUERY`, `JSEARCH_COUNTRY`, `JSEARCH_NUM_PAGES`, `JSEARCH_HOST` | `software engineer`, `lk`, `1`, `jsearch.p.rapidapi.com` | JSearch query settings |
 | `JOB_SYNC_MAX_PER_SOURCE`, `JOB_SYNC_STALE_DAYS` | `50`, `21` | Import size / expiry of unseen jobs |
@@ -90,10 +99,15 @@ npm run dev
 
 ## AI configuration (Google Gemini)
 
-1. Create a key in Google AI Studio.
-2. Set `GEMINI_API_KEY` in `.env` (Docker) or the environment (local). The key is only read by the backend and is sent to
-   Google in a request header; it is never exposed to the browser.
-3. Restart the backend. Settings > "AI features" and the assistant page show whether AI is active.
+1. Create a key in Google AI Studio (https://aistudio.google.com/apikey).
+2. Sign in to CareerMate, open **Settings**, and use the **Gemini API key** card to add, update or remove your own key.
+   The backend validates the key with Google, encrypts it with AES-256-GCM and stores it on your user account. The full
+   key is never returned to the browser or written to logs; only a masked suffix such as `****abcd` is shown.
+3. Optionally set a shared fallback key with `GEMINI_API_KEY` in `.env` (Docker) or the environment (local). Users
+   without a personal key use this shared key. Keep `API_KEY_ENCRYPTION_SECRET` stable so saved user keys remain
+   decryptable across restarts.
+4. The Settings card and assistant page show whether AI is active. Users can delete their key at any time to return to
+   the shared server key or built-in fallback logic.
 
 AI is used for: job compatibility refinement, resume analysis, resume text suggestions and the career assistant.
 **Without a key every feature still works** using deterministic fallbacks (weighted skill/experience/education matching,
@@ -124,19 +138,20 @@ saved jobs) is looked up by `id AND user_id`; other users' resources return `404
 * **Manual:** `POST /api/v1/admin/jobs`, `POST /api/v1/admin/jobs/import` (admin only).
 * **Seeded demo jobs:** 11 fictional sample jobs (IT, business, finance, marketing, customer service, engineering, HR,
   design, education, hospitality, internship) created by Flyway `V2`. They are labelled "Demo listing" and are **not real vacancies**.
-* **Automated:** `ExternalJobSource` implementations for the public Remotive and Arbeitnow APIs, plus the Jooble and
-  JSearch aggregators when their API keys are configured. Sync runs on `JOB_SYNC_CRON` when `JOB_SYNC_ENABLED=true`, once
-  on startup when `JOB_SYNC_ON_STARTUP=true` (only if no external jobs exist yet), or on demand via
-  `POST /api/v1/admin/jobs/sync`. Jobs are normalised, de-duplicated by `(source, external_id)` and a
+* **Automated:** `ExternalJobSource` implementations for the public ITPro.lk (Sri Lanka), Remotive and Arbeitnow APIs,
+  plus the Jooble and JSearch aggregators when their API keys are configured. Sync runs on `JOB_SYNC_CRON` when
+  `JOB_SYNC_ENABLED=true`, once on startup when `JOB_SYNC_ON_STARTUP=true` (only if no external jobs exist yet), or on
+  demand via `POST /api/v1/admin/jobs/sync`. Jobs are normalised, de-duplicated by `(source, external_id)` and a
   title/company/location fingerprint, keep their original application URL and source, and are deactivated when their
-  deadline passes or they stop appearing in the feed. With `JOB_PREFER_EXTERNAL=true` the recommendation feed ranks live
-  external listings instead of the seeded demo jobs whenever real jobs are available. Respect each provider's terms and
+  deadline passes or they stop appearing in the feed. With `JOB_PREFER_EXTERNAL=true` live listings are listed ahead of
+  seeded demo jobs, which remain available as a fallback instead of being removed. Respect each provider's terms and
   rate limits; add your own feed by implementing `ExternalJobSource` as a Spring bean. No scraping is used.
 
 ### Matching algorithm
-Overall = 50% skills (required skills weigh 2x, synonyms such as `k8s`/`postgres` normalised, resume text also counts) +
-20% experience level vs years + 10% education level + 20% preferences. With Gemini configured the AI score is blended
-60/40 with this result and its strengths/gaps/recommendations replace the generic ones.
+Overall = 50% skills (required skills weigh 2x, synonyms such as `k8s`/`postgres`/`golang` normalised, resume text also
+counts) + 20% experience level vs years + 10% education level + 15% preferences + 5% posting recency. Ambiguous short
+terms such as `Go` are only inferred from `golang` or an explicit job title, not from prose. With Gemini configured the
+AI score is blended 60/40 with this result and its strengths/gaps/recommendations replace the generic ones.
 
 ## API documentation
 
@@ -178,7 +193,7 @@ What was actually run when this project was generated:
 * **`Connection refused` to Postgres** - check `DB_URL`; in Docker the host is `db`.
 * **Frontend shows "Cannot reach the server"** - backend not started, or in dev the Vite proxy target is wrong (`VITE_DEV_API_TARGET`).
 * **Resume upload rejected** - only text-based PDF/DOCX up to 5 MB; scanned/image PDFs have no extractable text.
-* **AI answers say "offline mode"** - `GEMINI_API_KEY` is empty or the model id is unavailable to your key (check logs for HTTP status).
+* **AI answers say "offline mode"** - add a key in **Settings > Gemini API key**, or set `GEMINI_API_KEY` as a shared fallback. The model id may also be unavailable to the key (check logs for HTTP status).
 * **Gemini returns errors for the default model** - set `GEMINI_MODEL` to a model your key can use.
 * **PDF export shows `?` for some characters** - the built-in PDF fonts support Latin-1 only; non-Latin scripts are not supported in the builder PDF.
 * **Reset everything** - `docker compose down -v` (deletes database and uploaded resumes).
@@ -188,5 +203,6 @@ What was actually run when this project was generated:
 BCrypt password hashing, stateless JWT with server-side revocation on logout (in-memory list, cleared on restart; use a
 shared store such as Redis if you run several backend instances), CORS allow-list, bean validation, JPA parameterised queries,
 upload size/extension/magic-byte validation, files stored outside the database under generated names, path-traversal guard,
-no secrets in the frontend. Not included: rate limiting, email verification, password reset and refresh tokens; add them
-before exposing the service publicly. The default demo passwords and dev JWT secret must not be used in production.
+no secrets in the frontend, single-use hashed password-reset codes with expiry/attempt limits and non-enumerating
+responses. Not included: rate limiting, email verification and refresh tokens; add them before exposing the service
+publicly. The default demo passwords and dev JWT secret must not be used in production.

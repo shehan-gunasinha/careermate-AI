@@ -23,7 +23,8 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     const url = error.config?.url ?? '';
-    const isAuthCall = url.includes('/auth/login') || url.includes('/auth/register');
+    const isAuthCall = url.includes('/auth/login') || url.includes('/auth/register')
+      || url.includes('/auth/forgot-password') || url.includes('/auth/reset-password');
     if (error.response?.status === 401 && !isAuthCall) {
       localStorage.removeItem(TOKEN_KEY);
       if (!window.location.pathname.startsWith('/login')) {

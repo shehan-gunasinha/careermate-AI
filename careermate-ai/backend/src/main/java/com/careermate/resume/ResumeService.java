@@ -112,7 +112,7 @@ public class ResumeService {
             throw new BadRequestException("This resume has no extracted text to analyse");
         }
         String ext = r.getContentType().contains("pdf") ? "pdf" : "docx";
-        AnalysisResult result = aiService.analyze(r.getExtractedText(), ext);
+        AnalysisResult result = aiService.analyze(user, r.getExtractedText(), ext);
         AnalysisData d = result.data();
         ResumeAnalysis a = new ResumeAnalysis();
         a.setResume(r);
@@ -172,8 +172,8 @@ public class ResumeService {
         return new DownloadFile(storage.load(r.getStoragePath()), r.getOriginalFilename(), r.getContentType());
     }
 
-    public SuggestResponse suggest(SuggestRequest req) {
-        return aiService.suggest(req);
+    public SuggestResponse suggest(User user, SuggestRequest req) {
+        return aiService.suggest(user, req);
     }
 
     // ------------------------------------------------------------------ helpers
